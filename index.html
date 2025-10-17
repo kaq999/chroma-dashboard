@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Dashboard v5.0 | KAQEX</title>
+    <link rel="icon" type="image/png" href="brave-icon.png">
+    <link rel="apple-touch-icon" href="brave-icon.png">
+    
     <style>
         /* ---------------------------------------------------- */
         /* --- 1. KEYFRAME-ANIMATIONEN --- */
@@ -57,7 +60,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* CHROMA BROADCAST (NEU) */
+        /* CHROMA BROADCAST */
         @keyframes broadcastPulse {
             0% { opacity: 0; transform: scale(0.9); }
             50% { opacity: 1; transform: scale(1); }
@@ -95,7 +98,7 @@
         }
 
         /* ---------------------------------------------------- */
-        /* --- 3. LAYERED BACKGROUNDS (NUR PARTICLES) --- */
+        /* --- 3. PARTIKEL-HINTERGRUND (NUR PARTICLES) --- */
         /* ---------------------------------------------------- */
         #particle-canvas {
             position: absolute;
@@ -141,7 +144,7 @@
         /* Maus-Fix: Ring/Dot bei Hover über klickbaren Elementen ausblenden */
         body.cursor-hovered .cursor-ring { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
         body.cursor-hovered .cursor-dot { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        body.cursor-clicked .cursor-ring { transform: translate(-50%, -50%) scale(2); border-color: #14F195; }
+        body.cursor-clicked .cursor-ring { transform: translate(-50%, -50%) scale(2); border-color: #14F199; }
         body.cursor-clicked .cursor-dot { transform: translate(-50%, -50%) scale(0); }
 
 
@@ -165,10 +168,6 @@
             text-align: right;
         }
 
-        .crypto-ticker {
-            padding: 0;
-        }
-        
         .crypto-item {
             display: flex;
             justify-content: space-between;
@@ -227,9 +226,9 @@
         
         #clock {
             font-family: 'Courier New', monospace;
-            font-size: 2.5rem;
-            margin-bottom: 30px;
-            letter-spacing: 2px;
+            font-size: 2.8rem; /* Etwas größer für mehr Impact */
+            margin-bottom: 25px;
+            letter-spacing: 3px; /* Etwas mehr Abstand */
             color: #ffffff;
             font-weight: bold;
             text-shadow: 0 0 20px rgba(153, 69, 255, 0.5);
@@ -269,11 +268,11 @@
         }
 
         #quote {
-            margin-top: 20px;
+            margin-top: 25px; /* Mehr Platz zur Suche */
             font-style: italic;
-            color: #aaa;
+            color: #b0b0b0; /* Hellerer Text */
             max-width: 500px;
-            font-size: 0.9rem;
+            font-size: 1.0rem; /* Leicht größer */
         }
 
         /* --- WIDGETS --- */
@@ -572,7 +571,7 @@
         let flowField;
         let zOff;
 
-        const numberOfParticles = 70;
+        const numberOfParticles = 70; // Optimiert
         const particleColors = ['#9945FF', '#14F195', '#A7B6EE'];
         const flowFieldResolution = 20;
         const noiseScale = 0.005;
@@ -695,7 +694,7 @@
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; /* Leichter Trail für mehr Bewegung */
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             zOff += 0.005; 
@@ -872,7 +871,7 @@
         });
 
 
-        // --- FEATURE: CHROMA BROADCAST (NEU) ---
+        // --- FEATURE: CHROMA BROADCAST ---
         const broadcastInput = document.getElementById('broadcast-input');
         const broadcastDisplay = document.getElementById('broadcast-display');
         let broadcastTimer = null;
@@ -932,5 +931,4 @@
         // *** JAVASCRIPT ENDE ***
     </script>
 </body>
-
 </html>
