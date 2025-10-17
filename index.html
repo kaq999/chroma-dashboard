@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chroma Dashboard v4.7 (Instant Load)</title>
+    <style>
+        /* ---------------------------------------------------- */
+        /* --- 1. KEYFRAME-ANIMATIONEN --- */
+        /* ---------------------------------------------------- */
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes glow {
+            0% { border-color: #9945FF; box-shadow: 0 0 15px #9945FF; }
+            50% { border-color: #14F195; box-shadow: 0 0 25px #14F195; }
+            100% { border-color: #9945FF; box-shadow: 0 0 15px #9945FF; }
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* Preisanimation für Veränderung (Flicker) */
+        @keyframes price-flicker-up {
+            0% { color: #ffffff; }
+            50% { color: #ffffff; text-shadow: 0 0 10px #25d366; }
+            100% { color: var(--crypto-color, #25d366); }
+        }
+        @keyframes price-flicker-down {
+            0% { color: #ffffff; }
+            50% { color: #ffffff; text-shadow: 0 0 10px #ff3b30; }
+            100% { color: var(--crypto-color, #ff3b30); }
+        }
+
+        /* Loading Chroma Text Effect */
+        @keyframes kaqex-glow {
+            0% { text-shadow: 0 0 5px #9945FF, 0 0 10px #9945FF; }
+            50% { text-shadow: 0 0 10px #14F195, 0 0 20px #14F195; }
+            100% { text-shadow: 0 0 5px #9945FF, 0 0 10px #9945FF; }
+        }
+
+        @keyframes loadingFadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* CHROMA BROADCAST (NEU) */
+        @keyframes broadcastPulse {
+            0% { opacity: 0; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+
+        @keyframes barWave {
+            0% { transform: scaleY(0.1); }
+            50% { transform: scaleY(1); }
+            100% { transform: scaleY(0.1); }
+        }
+
+
+        /* ---------------------------------------------------- */
+        /* --- 2. GRUNDSTILE (WICHTIGER MAUS-FIX) --- */
+        /* ---------------------------------------------------- */
+        body {
+            margin: 0;
+            overflow: hidden;
+            cursor: none; 
+            font-family: 'Poppins', sans-serif;
+            color: white;
+            text-align: center;
+            background-color: #000000;
+        }
+        
+        /* Cursor-Fix: Zeige normalen Cursor, wenn über klickbaren/interaktiven Elementen */
+        .search-input:hover, .shortcut-link:hover, .crypto-name:hover, .crypto-price:hover, #date-widget:hover, #system-performance:hover {
+            cursor: default !important;
+        }
+
+        .content-wrapper, .crypto-ticker-wrapper, .cursor-dot, .cursor-ring, #loading-overlay, #date-widget, #system-performance, #broadcast-display {
+            animation: none;
+            filter: none;
+        }
+
+        /* ---------------------------------------------------- */
+        /* --- 3. LAYERED BACKGROUNDS (NUR PARTICLES) --- */
+        /* ---------------------------------------------------- */
+        #particle-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        
+        .particle-intensive #particle-canvas {
+            opacity: 1;
+            transition: opacity 0.5s;
+        }
+
+        /* ---------------------------------------------------- */
+        /* --- 4. INTERAKTIVER CURSOR --- */
+        /* ---------------------------------------------------- */
+        .cursor-ring {
+            position: fixed;
+            top: 0; left: 0;
+            width: 30px; height: 30px;
+            border: 2px solid rgba(153, 69, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: all 0.2s ease-out;
+            z-index: 9999;
+            box-shadow: 0 0 15px rgba(153, 69, 255, 0.5);
+        }
+
+        .cursor-dot {
+            position: fixed;
+            top: 0; left: 0;
+            width: 6px; height: 6px;
+            background-color: #9945FF;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: all 0.2s ease-out;
+            z-index: 9999;
+        }
+
+        /* Maus-Fix: Ring/Dot bei Hover über klickbaren Elementen ausblenden */
+        body.cursor-hovered .cursor-ring { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        body.cursor-hovered .cursor-dot { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        body.cursor-clicked .cursor-ring { transform: translate(-50%, -50%) scale(2); border-color: #14F195; }
+        body.cursor-clicked .cursor-dot { transform: translate(-50%, -50%) scale(0); }
+
+
+        /* ---------------------------------------------------- */
+        /* --- 5. CRYPTO-TICKER (FARB-SIMULATION) --- */
+        /* ---------------------------------------------------- */
+        .crypto-ticker-wrapper {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            opacity: 0;
+            animation: slideInRight 0.8s ease-out 0.5s forwards;
+            background-color: rgba(12, 1, 20, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 15px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(153, 69, 255, 0.1);
+            text-align: right;
+        }
+
+        .crypto-ticker {
+            padding: 0;
+        }
+        
+        .crypto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            min-width: 220px;
+        }
+        .crypto-item:last-child { margin-bottom: 0; }
+        .crypto-name { font-weight: bold; font-size: 1.4rem; margin-right: 20px; }
+        
+        .crypto-price { 
+            font-family: 'Poppins', sans-serif; 
+            font-weight: normal; 
+            color: #ffffff; 
+            transition: color 0.1s; 
+        }
+
+        /* Rot/Grün-Klassen sind die DAUERHAFTE Farbe */
+        .crypto-price.gain { color: #25d366 !important; }
+        .crypto-price.loss { color: #ff3b30 !important; }
+
+        /* Flicker-Animationen */
+        .flicker-up { animation: price-flicker-up 0.5s ease-out forwards; }
+        .flicker-down { animation: price-flicker-down 0.5s ease-out forwards; }
+
+
+        .gradient-text {
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            animation: gradientAnimation 4s ease infinite;
+        }
+        .btc-gradient { background-image: linear-gradient(90deg, #FFB84D, #F7931A, #FFB84D); }
+        .eth-gradient { background-image: linear-gradient(90deg, #6C7EDC, #A7B6EE, #6C7EDC); }
+        .sol-gradient { background-image: linear-gradient(90deg, #9945FF, #14F195, #9945FF); }
+        .ltc-gradient { background-image: linear-gradient(90deg, #A8A8A8, #E0E0E0, #A8A8A8); }
+
+
+        /* ---------------------------------------------------- */
+        /* --- 6. ZENTRALE INHALTE & DASHBOARD WIDGETS --- */
+        /* ---------------------------------------------------- */
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            z-index: 100;
+            position: relative;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out 0.2s forwards;
+        }
+        
+        #clock {
+            font-family: 'Courier New', monospace;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            color: #ffffff;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(153, 69, 255, 0.5);
+        }
+
+        .search-container {
+            background-color: rgba(12, 1, 20, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(153, 69, 255, 0.2);
+        }
+
+        .search-input {
+            background-color: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px 15px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            width: 350px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            transform: scale(1.05);
+            animation: glow 3s infinite;
+        }
+        
+        .search-input:hover {
+             border-color: rgba(153, 69, 255, 0.7);
+             cursor: text;
+        }
+
+        #quote {
+            margin-top: 20px;
+            font-style: italic;
+            color: #aaa;
+            max-width: 500px;
+            font-size: 0.9rem;
+        }
+
+        /* --- WIDGETS --- */
+        #date-widget {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: rgba(12, 1, 20, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 1rem;
+            font-weight: bold;
+            color: #14F195;
+            letter-spacing: 1px;
+            opacity: 0;
+            animation: slideInRight 0.8s ease-out 0.8s forwards;
+        }
+
+        #system-performance {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: rgba(12, 1, 20, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+            color: #ccc;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out 1s forwards;
+            min-width: 150px;
+            text-align: left;
+        }
+        .perf-item { margin-bottom: 5px; }
+
+        /* --- CHROMA BROADCAST DISPLAY --- */
+        #broadcast-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 101;
+            font-size: 5vw; 
+            font-weight: 700;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0;
+            
+            /* Chroma Text Styling (Re-using gradient text logic) */
+            background-image: linear-gradient(90deg, #9945FF, #14F195, #9945FF);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            
+            animation: broadcastPulse 5s ease-out forwards, gradientAnimation 4s linear infinite;
+        }
+
+        /* --- BROADCAST INPUT CONTAINER (NEU POSITIONIERT) --- */
+        #broadcast-input-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(153, 69, 255, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out 1.2s forwards;
+            display: block; 
+        }
+        #broadcast-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #14F195;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            text-align: left;
+            padding: 0; 
+            margin: 0; 
+        }
+        #broadcast-input::placeholder {
+            color: #9945FF;
+        }
+
+
+        /* ---------------------------------------------------- */
+        /* --- 7. SHORTCUTS --- */
+        /* ---------------------------------------------------- */
+        .shortcuts-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+            position: relative;
+            z-index: 100;
+        }
+
+        .shortcut-link {
+            width: 60px; height: 60px;
+            border-radius: 12px;
+            background-color: rgba(12, 1, 20, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Wellenförmige Leisten */
+        .shortcut-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to top, var(--glow-color, #fff) 0%, transparent 100%);
+            opacity: 0.1;
+            transform-origin: bottom;
+            animation: barWave 1.5s ease-in-out infinite;
+            animation-delay: calc(var(--delay) * 0.1s);
+        }
+
+        .shortcut-link img {
+            max-width: 36px; max-height: 36px;
+            width: auto; height: auto;
+            transition: all 0.3s ease;
+            z-index: 2;
+        }
+
+        .shortcut-link:hover {
+            transform: translateY(-8px);
+            cursor: pointer;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .shortcut-link:hover img { transform: scale(1.15); }
+
+        .shortcut-link.youtube { --glow-color: #FF0000; --delay: 1; }
+        .shortcut-link.twitch { --glow-color: #9145FF; --delay: 2; }
+        .shortcut-link.netflix { --glow-color: #E50914; --delay: 3; }
+        .shortcut-link.crunchyroll { --glow-color: #F47521; --delay: 4; }
+        .shortcut-link.gmail { --glow-color: #4285F4; --delay: 5; }
+        .shortcut-link.roblox { --glow-color: #FFFFFF; --delay: 6; }
+
+
+        /* ---------------------------------------------------- */
+        /* --- 8. LOADING OVERLAY (KAQEX) --- */
+        /* ---------------------------------------------------- */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #000000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1s ease-out 1s;
+        }
+        
+        .loader-text.kaqex {
+            font-size: 3rem;
+            font-weight: bold;
+            letter-spacing: 5px;
+            margin-bottom: 20px;
+            animation: kaqex-glow 2s infinite;
+        }
+
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #14F195;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loader-text {
+            color: #14F195;
+            font-size: 1.2rem;
+        }
+        
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="loader-text kaqex">MADE BY KAQEX</div>
+        <div class="loader"></div>
+        <div class="loader-text">CHROMA SYSTEM LOADING...</div>
+    </div>
+
+    <div class="cursor-ring"></div>
+    <div class="cursor-dot"></div>
+    
+    <canvas id="particle-canvas"></canvas>
+
+    <div id="date-widget"></div>
+    
+    <div id="system-performance">
+        <div class="perf-item">Status: <span style="color: #14F195;">ONLINE</span></div>
+        <div class="perf-item">CPU: <span id="cpu-load">15%</span></div>
+        <div class="perf-item">RAM: <span id="ram-usage">3.2 GB</span></div>
+    </div>
+    
+    <div id="broadcast-display" style="display:none;"></div>
+    
+    <div id="broadcast-input-container">
+        <input type="text" id="broadcast-input" placeholder="Broadcast: Enter-Taste drücken">
+    </div>
+
+    <div class="crypto-ticker-wrapper">
+        <div class="crypto-ticker">
+            <div class="crypto-item">
+                <span class="crypto-name gradient-text btc-gradient">BTC</span>
+                <span id="btc-price" class="crypto-price" data-price="92369.00" data-change-value="-3.33">€92.369,00</span>
+            </div>
+            <div class="crypto-item">
+                <span class="crypto-name gradient-text eth-gradient">ETH</span>
+                <span id="eth-price" class="crypto-price" data-price="3315.26" data-change-value="-2.69">€3.315,26</span>
+            </div>
+            <div class="crypto-item">
+                <span class="crypto-name gradient-text sol-gradient">SOL</span>
+                <span id="sol-price" class="crypto-price" data-price="157.87" data-change-value="-5.34">€157,87</span>
+            </div>
+            <div class="crypto-item">
+                <span class="crypto-name gradient-text ltc-gradient">LTC</span>
+                <span id="ltc-price" class="crypto-price" data-price="77.85" data-change-value="-4.40">€77,85</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-wrapper">
+        <div id="clock"></div>
+
+        <div class="search-container">
+            <form action="https://www.google.com/search" method="GET" target="_blank" id="search-form">
+                <input type="text" name="q" class="search-input" placeholder="Suche">
+            </form>
+        </div>
+
+        <div class="shortcuts-container">
+            <a href="https://www.youtube.com" target="_blank" class="shortcut-link youtube" title="YouTube" style="--delay: 1;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png" alt="YouTube Logo">
+            </a>
+            <a href="https://www.twitch.tv" target="_blank" class="shortcut-link twitch" title="Twitch" style="--delay: 2;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/d/d3/Twitch_Glitch_Logo_Purple.svg" alt="Twitch Logo">
+            </a>
+            <a href="https://www.netflix.com" target="_blank" class="shortcut-link netflix" title="Netflix" style="--delay: 3;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/0/0c/Netflix_2015_N_logo.svg" alt="Netflix Logo">
+            </a>
+            <a href="https://www.crunchyroll.com" target="_blank" class="shortcut-link crunchyroll" title="Crunchyroll" style="--delay: 4;">
+                <img src="https://img.icons8.com/ios-filled/100/f47521/crunchyroll.png" alt="Crunchyroll Logo">
+            </a>
+            <a href="https://mail.google.com" target="_blank" class="shortcut-link gmail" title="Gmail" style="--delay: 5;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" alt="Gmail Logo">
+            </a>
+            <a href="https://www.roblox.com" target="_blank" class="shortcut-link roblox" title="Roblox" style="--delay: 6;">
+                <img src="https://img.icons8.com/ios-filled/100/ffffff/roblox.png" alt="Roblox Logo">
+            </a>
+        </div>
+        
+        <div id="quote"></div>
+    </div>
+
+    <script>
+        // *** JAVASCRIPT START ***
+        
+        // --- GRUNDLAGEN & PARTIKEL-ENGINE (OPTIMIERT FÜR FLÜSSIGKEIT) ---
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Globale Variablen für die Partikel-Engine
+        let mouse;
+        let particlesArray;
+        let flowField;
+        let zOff;
+
+        const numberOfParticles = 70;
+        const particleColors = ['#9945FF', '#14F195', '#A7B6EE'];
+        const flowFieldResolution = 20;
+        const noiseScale = 0.005;
+        const maxLineDistance = 60;
+
+        function getPerlinAngle(x, y, z) {
+            const waveX = Math.sin(x * noiseScale + z) * 0.5 + 0.5;
+            const waveY = Math.cos(y * noiseScale + z) * 0.5 + 0.5;
+            return (waveX + waveY) * Math.PI * 2;
+        }
+
+        function initFlowField() {
+            flowField = [];
+            const rows = Math.floor(canvas.height / flowFieldResolution);
+            const cols = Math.floor(canvas.width / flowFieldResolution);
+
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    const angle = getPerlinAngle(i * flowFieldResolution, j * flowFieldResolution, zOff);
+                    flowField.push({
+                        x: i * flowFieldResolution,
+                        y: j * flowFieldResolution,
+                        angle: angle,
+                        vectorX: Math.cos(angle),
+                        vectorY: Math.sin(angle)
+                    });
+                }
+            }
+        }
+        
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2.5 + 1;
+                this.baseSpeedX = (Math.random() * 0.2 - 0.1);
+                this.baseSpeedY = (Math.random() * 0.2 - 0.1);
+                this.speedX = this.baseSpeedX;
+                this.speedY = this.baseSpeedY;
+                this.color = particleColors[Math.floor(Math.random() * particleColors.length)];
+                this.maxSpeed = 1.5;
+            }
+
+            getFlowVector() {
+                const x = Math.floor(this.x / flowFieldResolution);
+                const y = Math.floor(this.y / flowFieldResolution);
+                const index = x * Math.floor(canvas.height / flowFieldResolution) + y;
+                
+                if (flowField[index]) {
+                    return { vx: flowField[index].vectorX, vy: flowField[index].vectorY };
+                }
+                return { vx: 0, vy: 0 };
+            }
+
+            update() {
+                const flowVector = this.getFlowVector();
+                this.speedX += flowVector.vx * 0.1;
+                this.speedY += flowVector.vy * 0.1;
+                
+                if (mouse.x !== undefined) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.hypot(dx, dy);
+                    if (distance < mouse.radius) {
+                        const forceDirectionX = dx / distance;
+                        const forceDirectionY = dy / distance;
+                        const force = (mouse.radius - distance) / mouse.radius;
+                        const moveAmount = force * 0.8;
+                        this.speedX -= forceDirectionX * moveAmount;
+                        this.speedY -= forceDirectionY * moveAmount;
+                    }
+                }
+                
+                this.speedX = Math.min(Math.max(this.speedX, -this.maxSpeed), this.maxSpeed);
+                this.speedY = Math.min(Math.max(this.speedY, -this.maxSpeed), this.maxSpeed);
+                
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+        
+        function initParticles() {
+            particlesArray = [];
+            for (let i = 0; i < numberOfParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+        
+        function drawConnections() {
+            let opacity = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    const dx = particlesArray[a].x - particlesArray[b].x;
+                    const dy = particlesArray[a].y - particlesArray[b].y;
+                    const distance = Math.hypot(dx, dy);
+
+                    if (distance < maxLineDistance) {
+                        opacity = 1 - (distance / maxLineDistance);
+                        ctx.strokeStyle = `rgba(153, 69, 255, ${opacity * 0.6})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            zOff += 0.005; 
+            initFlowField();
+
+            drawConnections();
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            requestAnimationFrame(animate);
+        }
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+            initFlowField();
+        });
+
+        // --- FEATURE: MOUSE CURSOR & EASTER EGG ---
+        
+        function setupCursorAndEvents() {
+            const cursorRing = document.querySelector('.cursor-ring');
+            const cursorDot = document.querySelector('.cursor-dot');
+            const clickableElements = document.querySelectorAll('.search-input, .shortcut-link, .crypto-name, .crypto-price, #date-widget, #system-performance, #broadcast-input');
+
+            mouse = { x: undefined, y: undefined, radius: 150 };
+            zOff = 0;
+
+            window.addEventListener('mousemove', e => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                cursorRing.style.left = `${e.clientX}px`;
+                cursorRing.style.top = `${e.clientY}px`;
+                cursorDot.style.left = `${e.clientX}px`;
+                cursorDot.style.top = `${e.clientY}px`;
+            });
+
+            // Maus-Fix: Standardcursor anzeigen, wenn über klickbaren Elementen
+            clickableElements.forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    document.body.classList.add('cursor-hovered');
+                    document.body.style.cursor = 'default';
+                });
+                el.addEventListener('mouseleave', () => {
+                    document.body.classList.remove('cursor-hovered');
+                    document.body.style.cursor = 'none';
+                });
+            });
+
+            window.addEventListener('mousedown', () => document.body.classList.add('cursor-clicked'));
+            window.addEventListener('mouseup', () => document.body.classList.remove('cursor-clicked'));
+
+            window.addEventListener('keydown', (e) => {
+                if (e.shiftKey && e.key === 'C') {
+                    e.preventDefault();
+                    document.body.classList.add('particle-intensive');
+                    setTimeout(() => {
+                        document.body.classList.remove('particle-intensive');
+                    }, 5000);
+                }
+            });
+        }
+
+
+        // --- FEATURE: UHR & DATUM & ZITATE ---
+        const clockElement = document.getElementById('clock');
+        const dateElement = document.getElementById('date-widget');
+        
+        function updateDateTime() {
+            const now = new Date();
+            
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            clockElement.textContent = `${hours}:${minutes}:${seconds}`;
+
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            dateElement.textContent = now.toLocaleDateString('de-DE', options).toUpperCase();
+        }
+        setInterval(updateDateTime, 1000);
+        
+        const quoteElement = document.getElementById('quote');
+        const quotes = [
+            "The best way to predict the future is to invent it. - Alan Kay",
+            "Code is like humor. When you have to explain it, it’s bad.",
+            "The advance of technology is based on making it fit in so that you don't really even notice it.",
+            "It's not a bug, it's an undocumented feature.",
+            "Stay hungry, stay foolish."
+        ];
+        quoteElement.textContent = `"${quotes[Math.floor(Math.random() * quotes.length)]}"`;
+
+
+        // --- FEATURE: SYSTEM PERFORMANCE (SIMULIERT) ---
+        const cpuElement = document.getElementById('cpu-load');
+        const ramElement = document.getElementById('ram-usage');
+
+        function updatePerformance() {
+            const cpu = (Math.random() * 20 + 10).toFixed(0);
+            const ram = (Math.random() * 2 + 3).toFixed(1);
+            cpuElement.textContent = `${cpu}%`;
+            ramElement.textContent = `${ram} GB`;
+            
+            cpuElement.style.color = (cpu > 25) ? '#ff3b30' : '#14F195';
+        }
+        setInterval(updatePerformance, 5000);
+
+        // --- FEATURE: CRYPTO-TICKER (FLICKER FIX) ---
+        const priceElements = document.querySelectorAll('.crypto-price');
+
+        function initialPriceSetup() {
+            priceElements.forEach(el => {
+                const priceValue = parseFloat(el.dataset.price);
+                const formattedPrice = `€${priceValue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                el.textContent = formattedPrice;
+                
+                // Setzt die initiale Farbe basierend auf dem Change Value
+                const changeValue = parseFloat(el.dataset.changeValue);
+                if (changeValue > 0) {
+                    el.classList.add('gain');
+                } else if (changeValue < 0) {
+                    el.classList.add('loss');
+                }
+            });
+        }
+
+        function updatePrices() {
+            priceElements.forEach(el => {
+                let currentPrice = parseFloat(el.dataset.price);
+                
+                // Erhöhte Volatilität: 0.5% des Preises pro Update
+                const fluctuation = (Math.random() - 0.5) * (currentPrice * 0.005); 
+                const newPrice = currentPrice + fluctuation;
+                
+                el.dataset.price = newPrice;
+                
+                // 1. Setzt die DAUERHAFTE Farbe basierend auf der aktuellen Fluktuation
+                el.classList.remove('gain', 'loss');
+                const permanentColorClass = fluctuation >= 0 ? 'gain' : 'loss';
+                el.classList.add(permanentColorClass);
+
+                // 2. Setzt die Flicker-Klasse (Weiß-Aufleuchten)
+                const changeClass = fluctuation >= 0 ? 'flicker-up' : 'flicker-down';
+                
+                // Formatierung im deutschen Euro-Format
+                const formattedPrice = `€${newPrice.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                el.textContent = formattedPrice;
+                
+                // 3. Führe den Flicker durch
+                el.classList.add(changeClass);
+                // 4. Setzt die Flicker-Klasse nach 500ms zurück (Farbe kehrt zur dauerhaften gain/loss Klasse zurück)
+                setTimeout(() => el.classList.remove(changeClass), 500);
+            });
+        }
+        // Aktualisierungsintervall auf 2 Sekunden gesetzt
+        setInterval(updatePrices, 2000); 
+        
+
+        // --- FEATURE: SMART SEARCH ---
+        document.getElementById('search-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = this.elements.q.value.trim();
+            let url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+
+            if (query.toLowerCase().startsWith('yt:')) {
+                url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query.substring(3).trim());
+            } else if (query.toLowerCase().startsWith('tw:')) {
+                url = 'https://www.twitch.tv/search?term=' + encodeURIComponent(query.substring(3).trim());
+            }
+            
+            window.open(url, '_blank');
+            this.elements.q.value = '';
+        });
+
+
+        // --- FEATURE: CHROMA BROADCAST (NEU) ---
+        const broadcastInput = document.getElementById('broadcast-input');
+        const broadcastDisplay = document.getElementById('broadcast-display');
+        let broadcastTimer = null;
+
+        broadcastInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const message = this.value.trim();
+                if (message) {
+                    // Setze den Text und zeige das Display
+                    broadcastDisplay.textContent = message;
+                    broadcastDisplay.style.display = 'block';
+
+                    // Erzwinge Neuanimation 
+                    broadcastDisplay.style.animation = 'none';
+                    void broadcastDisplay.offsetWidth; // Trigger reflow
+                    broadcastDisplay.style.animation = 'broadcastPulse 5s ease-out forwards, gradientAnimation 4s linear infinite';
+
+                    // Timer zum Ausblenden des Textes
+                    if (broadcastTimer) clearTimeout(broadcastTimer);
+                    broadcastTimer = setTimeout(() => {
+                        broadcastDisplay.style.display = 'none';
+                    }, 5000);
+                    
+                    this.value = '';
+                }
+            }
+        });
+
+
+        // --- WICHTIGER INITIALISIERUNGS-FIX ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Initialisierung der visuellen Elemente und Events
+            setupCursorAndEvents(); 
+            
+            // 2. Partikel-Engine Initialisierung
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+            initFlowField();
+            animate();
+            
+            // 3. Initialisierung der Dashboard-Daten
+            updateDateTime();
+            updatePerformance();
+            
+            // Initialisiert die Preise im EUR-Format und startet Ticker
+            initialPriceSetup();
+            updatePrices(); 
+
+            // 4. Lade-Overlay ausblenden (SOFORTIGER FIX)
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.style.animation = 'loadingFadeOut 1s ease-out 0.5s forwards'; 
+            
+            // Setze den Fokus auf das Broadcast-Feld, sobald das Dashboard geladen ist
+            broadcastInput.focus(); 
+        });
+        // *** JAVASCRIPT ENDE ***
+    </script>
+</body>
+</html>
