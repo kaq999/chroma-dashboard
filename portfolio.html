@@ -229,14 +229,13 @@
     </div>
     
     <div class="home-button-container">
-        <a href="Website.html" class="home-button">Zurück zur Startseite</a>
+        <a href="index.html" class="home-button">Zurück zur Startseite</a>
     </div>
 
     <script>
         const canvas = document.getElementById('particle-canvas');
         const ctx = canvas.getContext('2d');
         let stars;
-        // --- KORREKTUR HIER: Partikelanzahl auf 500 erhöht ---
         let config = { stars: { count: 500, colors: ['#9945FF', '#14F195', '#A7B6EE', '#FFFFFF'], fov: 250, speed: 2 } };
 
         class Star {
